@@ -1,12 +1,45 @@
 from django.http import Http404
-from rest_framework import status, mixins, generics
+from rest_framework import status, mixins, generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from .models import Snippet
-from .serializers import SnippetSerializer
+from .permission import IsOwnerOrReadOnly
+from .serializers import SnippetSerializer, UserSerializer
+
+from django.contrib.auth.models import User
+
 
 # Create your views here.
+
+
+# 그러나 사실은 이렇게 하면 된다..
+class SnippetList(generics.ListCreateAPIView):
+    queryset = Snippet.objects.all()
+    serializer_class = SnippetSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer):
+        serializer.save(owner = self.request.user)
+
+
+class SnippetDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Snippet.objects.all()
+    serializer_class = SnippetSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly,
+                          IsOwnerOrReadOnly]
+
+
+class UserList(generics.ListAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+
+class UserDetail(generics.RetrieveAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+
 
 # decorator usage
 """
@@ -50,7 +83,6 @@ def snippet_detail(request, pk, format=None):
         return Response(status=status.HTTP_204_NO_CONTENT)
 """
 
-
 # class usage
 """
 class SnippetList(mixins.ListModelMixin,
@@ -81,12 +113,3 @@ class SnippetDetail(mixins.RetrieveModelMixin,
     def delete(self, request, *args, **kwargs):
         return self.destroy(request, *args, **kwargs)
 """
-
-# 그러나 사실은 이렇게 하면 된다..
-class SnippetList(generics.ListCreateAPIView):
-    queryset = Snippet.objects.all()
-    serializer_class = SnippetSerializer
-
-class SnippetDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Snippet.objects.all()
-    serializer_class = SnippetSerializer
